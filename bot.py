@@ -4,7 +4,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 
 # الإعدادات الأساسية
-TOKEN = "8637900141:AAEAH85RdTUVhz488aALryiW1Wxcob6c3uY"
+TOKEN = "8637900141:8637900141:AAHbYWiP8NfD1IVs9vyGf1FH8Bjjc_DhKh0"
 ADMIN_ID = 8037611619
 
 # القنوات المطلوبة (تأكد أن البوت آدمن فيها)
