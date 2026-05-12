@@ -1,132 +1,79 @@
-import asyncio
-import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+import telebot
+from telebot import types
+import os
 
-# الإعدادات الأساسية
-TOKEN = "8637900141:8637900141:AAHbYWiP8NfD1IVs9vyGf1FH8Bjjc_DhKh0"
-ADMIN_ID = 8037611619
-
-# القنوات المطلوبة (تأكد أن البوت آدمن فيها)
-REQUIRED_CHANNELS = [
-    {"username": "@hyperOS31", "id": -1002477232328, "name": "HyperOS 31"},
-    {"username": "@notes_xmy", "id": -1003773446325, "name": "Notes XMY"},
+API_TOKEN = '8637900141:AAHbYWiP8NfD1IVs9vyGf1FH8Bjjc_DhKh0'
+CHANNELS = [
+    {"id": -1002477232328, "link": "https://t.me/hyperOS31"},
+    {"id": -1003773446325, "link": "https://t.me/notes_xmy"}
 ]
 
-# الكيبوردات (Keyboards)
-main_keyboard = InlineKeyboardMarkup([
-    [InlineKeyboardButton("📲 تحميل الثيم", callback_data="download")],
-    [InlineKeyboardButton("❓ الأسئلة الشائعة", callback_data="faq")],
-    [InlineKeyboardButton("💬 تواصل مع الإدارة", url="https://t.me/Ke_ph1_bot")],
-])
+bot = telebot.TeleBot(API_TOKEN)
 
-back_keyboard = InlineKeyboardMarkup([
-    [InlineKeyboardButton("🔙 رجوع للقائمة", callback_data="back")]
-])
-
-# دالة التحقق من الإشتراك
-async def check_subscription(user_id, context: ContextTypes.DEFAULT_TYPE):
-    for channel in REQUIRED_CHANNELS:
+def check_subscription(user_id):
+    for channel in CHANNELS:
         try:
-            member = await context.bot.get_chat_member(chat_id=channel["id"], user_id=user_id)
-            # إذا كانت حالة المستخدم "غادر" أو "مطرود"
-            if member.status in ["left", "kicked"]:
+            status = bot.get_chat_member(channel["id"], user_id).status
+            if status in ['left', 'kicked']:
                 return False
-        except Exception as e:
-            # في حال وجود خطأ (البوت ليس آدمن أو ID خطأ) نعتبره غير مشترك للأمان
-            logging.error(f"Error checking channel {channel['username']}: {e}")
-            return False 
+        except:
+            return False
     return True
 
-# دالة كيبورد القنوات
-def get_channels_keyboard():
-    keyboard = []
-    for ch in REQUIRED_CHANNELS:
-        url = f"https://t.me/{ch['username'].replace('@','')}"
-        keyboard.append([InlineKeyboardButton(f"📢 اشترك في {ch['name']}", url=url)])
-    keyboard.append([InlineKeyboardButton("✅ تحققت من الاشتراك", callback_data="check_sub")])
-    return InlineKeyboardMarkup(keyboard)
-
-# أمر الـ Start
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    is_subscribed = await check_subscription(user.id, context)
+@bot.message_handler(commands=['start'])
+def start(message):
+    user_id = message.from_user.id
     
-    if not is_subscribed:
-        channels_list = "\n".join([f"▫️ {ch['name']}" for ch in REQUIRED_CHANNELS])
-        text = (
-            f"⚠️ عذراً يا بطل، يجب الاشتراك أولاً للمتابعة.\n\n"
-            f"قنواتنا:\n{channels_list}\n\n"
-            f"✅ بعد الاشتراك، اضغط على زر التحقق بالأسفل."
+    if check_subscription(user_id):
+        markup = types.InlineKeyboardMarkup(row_width=1)
+        # هنا غيرنا الزر من رابط إلى callback_data حتى البوت يدز الملف
+        btn1 = types.InlineKeyboardButton("📲 تحميل الثيم", callback_data="download_theme")
+        btn2 = types.InlineKeyboardButton("❓ الأسئلة الشائعة", callback_data="faq")
+        btn3 = types.InlineKeyboardButton("💬 تواصل مع الإدارة", url="https://t.me/hyperOS31")
+        markup.add(btn1, btn2, btn3)
+
+        welcome_text = (
+            "✨ **أهلاً بك في بوت ثيم Ios 26 العربي**\n\n"
+            "🎨 **ثيم زجاجي مائي لهواتف شاومي**\n"
+            "⚡ **يعمل على HyperOS 3**\n"
+            "⭐ **التقييم: 4.9/5**\n\n"
+            "👇 **اختر من الأزرار:**"
         )
-        await update.message.reply_text(text, reply_markup=get_channels_keyboard())
-        return
+        bot.send_message(message.chat.id, welcome_text, reply_markup=markup, parse_mode="Markdown")
     
-    text = (
-        "✨ أهلاً بك في بوت ثيم Ios 26 العربي\n\n"
-        "🎨 ثيم زجاجي مائي لهواتف شاومي\n"
-        "⚡ يعمل على HyperOS 3\n"
-        "⭐ التقييم: 4.9/5\n\n"
-        "👇 اختر من الأزرار بالأسفل:"
-    )
-    await update.message.reply_text(text, reply_markup=main_keyboard)
+    else:
+        markup = types.InlineKeyboardMarkup(row_width=1)
+        for i, channel in enumerate(CHANNELS, 1):
+            markup.add(types.InlineKeyboardButton(f"قناة الاشتراك {i} ✅", url=channel["link"]))
+        markup.add(types.InlineKeyboardButton("تحقق من الاشتراك 🔄", callback_data="check"))
+        
+        bot.send_message(message.chat.id, 
+                         "⚠️ **عذراً عزيزي، عليك الاشتراك في قنوات البوت أولاً!**\n\n"
+                         "اشترك بالقنوات جوه واضغط على زر التحقق 👇", 
+                         reply_markup=markup, parse_mode="Markdown")
 
-# معالج الأزرار (Callback Query)
-async def callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    user = update.effective_user
-    data = query.data
-    
-    await query.answer() # لإيقاف مؤشر التحميل في التليجرام
-
-    if data == "check_sub":
-        if await check_subscription(user.id, context):
-            await query.answer("✅ تم التحقق بنجاح! نورتنا 🤍", show_alert=True)
-            text = "✨ أهلاً بك مجدداً\n\n🎨 ثيم Ios 26 العربي جاهز\n👇 اختر من الأزرار:"
-            await query.edit_message_text(text, reply_markup=main_keyboard)
+@bot.callback_query_handler(func=lambda call: True)
+def handle_query(call):
+    if call.data == "check":
+        if check_subscription(call.from_user.id):
+            bot.answer_callback_query(call.id, "✅ تم التحقق بنجاح!")
+            bot.delete_message(call.message.chat.id, call.message.message_id)
+            start(call.message)
         else:
-            await query.answer("❌ لم تشترك في جميع القنوات بعد! 🌚", show_alert=True)
+            bot.answer_callback_query(call.id, "❌ لسه ما اشتركت بكل القنوات!", show_alert=True)
+            
+    elif call.data == "download_theme":
+        # التحقق من وجود الملف قبل الإرسال
+        file_path = "po.po"
+        if os.path.exists(file_path):
+            bot.answer_callback_query(call.id, "جاري إرسال الثيم... ⏳")
+            with open(file_path, 'rb') as theme_file:
+                bot.send_document(call.message.chat.id, theme_file, caption="✅ تفضل عزيزي، هذا ملف الثيم الخاص بك.")
+        else:
+            bot.answer_callback_query(call.id, "❌ الملف غير موجود حالياً، تواصل مع المطور.", show_alert=True)
 
-    elif data == "download":
-        text = (
-            "🚧 الملف قيد التجربة حالياً\n\n"
-            "🎨 ثيم Ios 26 العربي تحت الاختبار النهائي\n"
-            "📢 سيتم إخبارك فور صدوره في القنوات الرسمية."
-        )
-        await query.edit_message_text(text, reply_markup=back_keyboard)
+    elif call.data == "faq":
+        bot.answer_callback_query(call.id, "الأسئلة الشائعة ستتوفر قريباً!")
 
-    elif data == "faq":
-        text = (
-            "❓ الأسئلة الشائعة\n\n"
-            "1️⃣ هل الثيم مجاني؟\n✅ نعم، متوفر للجميع مجاناً.\n\n"
-            "2️⃣ الأنظمة المدعومة؟\n⚡ حصرياً لنظام HyperOS 3.\n\n"
-            "3️⃣ الدعم الفني؟\n💬 تواصل معنا عبر: @Ke_ph1_bot"
-        )
-        await query.edit_message_text(text, reply_markup=back_keyboard)
-
-    elif data == "back":
-        text = "✨ القائمة الرئيسية\n\n🎨 ثيم Ios 26 العربي\n👇 اختر من الأزرار:"
-        await query.edit_message_text(text, reply_markup=main_keyboard)
-
-# أمر الإحصائيات (للآدمن فقط)
-async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != ADMIN_ID:
-        return
-    await update.message.reply_text("✅ نظام الإشتراك الإجباري والخدمات تعمل بشكل مستقر.")
-
-# تشغيل البوت
-def main():
-    # إعداد السجلات (Logs) لرؤية الأخطاء في التيرمينال
-    logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-    
-    app = Application.builder().token(TOKEN).build()
-    
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("stats", stats))
-    app.add_handler(CallbackQueryHandler(callback))
-    
-    print("🚀 البوت يعمل الآن بنجاح...")
-    app.run_polling()
-
-if __name__ == "__main__":
-    main()
+print("البوت شغال حالياً...")
+bot.infinity_polling()
